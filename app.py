@@ -1,10 +1,29 @@
 import pytesseract
 import time
 import pyautogui
+import pytesseract
 import os
 import cv2
-from PIL import Image, ImageGrab
+from PIL import Image, ImageGrab, ImageEnhance
 
+img_str             = ''
+current_screen      = 'currentscreen.png'
+results_screen      = 'results_screen.png'
+waiting_for_server  = 'waiting for a server'
+esperando_servidor  = 'servidor'
+results_words       = ['resultados', 'results', 'resultats', 'résultats']
+eliminated_wors     = ['ELIMINATED!', 'ELIMINATED?', 'ELIMINADO!', 'ELIMINADO?']
+
+ENTER_KEY   = 'enter'
+ESC_KEY     = 'esc'
+
+loc = 0
+w,h = pyautogui.size()
+waiting_screen = 0
+
+print('Version 1.2')
+
+# Validar si el tesseract está instalado
 tesseract_exe = 'C:\\Program Files\\Tesseract-OCR\\tesseract.exe'
 
 pytesseract.pytesseract.tesseract_cmd = tesseract_exe
@@ -17,26 +36,23 @@ if not tess_instalado :
     time.sleep(10)
     exit(tesseract_exe)
 
-print('Version 1.1')
+# validar si existe la captura de pantalla de eliminado, si no existe no se puede continuar
+if os.path.isfile('./eliminated.png'):
+    img_str = './eliminated.png'
 
-current_screen = 'currentscreen.png'
-waiting_for_server = 'waiting for a server'
-esperando_servidor = 'servidor'
-w,h = pyautogui.size()
-waiting_screen = 0
+if(os.path.isfile('./eliminated.jpg')):
+    img_str = './eliminated.jpg'
 
+if(img_str == ''):
+    print('Nos hace falta un paso para continuar...')
+    print('Saca la captura de pantalla de eliminado como se indica en las instrucciones')
+    exit()
+
+# función para validar si nos encontramos en la pantalla donde se va llenando la lobby
 def mismaPantalla(w,h, waiting_screen):
-
-    pic = ImageGrab.grab(bbox=(0, h-120, w, h))
-    #pic = pyscreenshot.grab(bbox=(0, h-120, w, h))
-    #pic.show()
-    pic.save(current_screen)
-
     try:
-        img = cv2.imread(current_screen)
-        custom_config = r'--oem 3 --psm 6'
-        text = pytesseract.image_to_string(img, config=custom_config)
-        print('text ', text)
+        bottom_screen = pyautogui.screenshot(region=(0, h-120, w, h))
+        text = pytesseract.image_to_string(bottom_screen)
     except Exception as e:
         print('screen shot', e)
 
@@ -47,37 +63,36 @@ def mismaPantalla(w,h, waiting_screen):
 
     if waiting_screen >= 60:
         time.sleep(1)
-        pyautogui.press('esc')
+        pyautogui.press(ESC_KEY)
         waiting_screen = 0
 
     return waiting_screen
 
+def texto_top():
+    # region left, top, right, lower
+    cropped_screenshot = pyautogui.screenshot(region=(0, 0, w//2, h//5))
+    text = pytesseract.image_to_string(cropped_screenshot)
 
-loc = 0
+    if any(word in text.lower() for word in results_words):
+        print('Estamos en la pantalla de Recompensas')
+        pyautogui.keyDown(ENTER_KEY)
+        time.sleep(1)
+        pyautogui.keyUp(ENTER_KEY)
+
 while True:
     time.sleep(2)
     loc+=1
 
     try:
-        img_str = ''
         waiting_screen = mismaPantalla(w,h, waiting_screen)
+        texto_top()
 
-        if os.path.isfile('./eliminated.png'):
-            img_str = './eliminated.png'
-
-        if(os.path.isfile('./eliminated.jpg')):
-            img_str = './eliminated.jpg'
-
-        located = pyautogui.locateOnScreen(img_str, confidence=0.9, grayscale=True, region=(int(w/2), int(h/2), w, h))
-        print("LOCATED ", located)
-        #print(typeof(locate[0]))
-        #screenshot = pyautogui.screenshot(region=(1462,873,387,71))
-        #pic = ImageGrab.grab(bbox=located)
-        #screenshot.save(str(loc)+'located.png')
+        located = pyautogui.locateOnScreen(img_str, confidence=0.9, grayscale=True, region=(w//2, 0, w, h))
+        #print("LOCATED ", located)
         print("Fuimos eliminados, saliendo de partida...")
-        pyautogui.press('esc')
+        pyautogui.press(ESC_KEY)
         waiting_screen = 0
     except Exception as e:
         print('continuar ', e)
 
-    pyautogui.press('enter')
+    pyautogui.press(ENTER_KEY)
